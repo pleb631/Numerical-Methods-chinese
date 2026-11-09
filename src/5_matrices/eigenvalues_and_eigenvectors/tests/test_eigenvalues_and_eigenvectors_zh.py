@@ -1,0 +1,231 @@
+# 本文件为 test_eigenvalues_and_eigenvectors.py 的中文注释版本（代码逻辑与英文版完全一致）
+import pytest
+import numpy as np
+from ..implementation.eigenvalues_and_eigenvectors import (
+    find_eigenvalues,
+    find_eigenvectors,
+)
+
+
+def test_eigen_decomposition_identity():
+    A = np.eye(3)
+    eigenvalues = find_eigenvalues(A)
+    expected_eigenvalues = np.array([1, 1, 1])
+    assert np.allclose(np.sort(eigenvalues), np.sort(expected_eigenvalues))
+    eigenvectors = find_eigenvectors(A)
+    expected_eigenvectors = np.eye(3)
+    for i in range(3):
+        assert np.allclose(
+            np.abs(eigenvectors[:, i]), np.abs(expected_eigenvectors[:, i]), rtol=1e-3
+        )
+
+
+def test_eigen_decomposition_diagonal():
+    A = np.diag([2, 3, 4])
+    eigenvalues = find_eigenvalues(A)
+    expected_eigenvalues = np.array([2, 3, 4])
+    assert np.allclose(np.sort(eigenvalues), np.sort(expected_eigenvalues))
+    eigenvectors = find_eigenvectors(A)
+    expected_eigenvectors = np.eye(3)
+    for i in range(3):
+        assert np.allclose(
+            np.sort(np.abs(eigenvectors[:, i])),
+            np.sort(np.abs(expected_eigenvectors[:, i])),
+            atol=0.5,
+        )
+
+
+def test_eigen_decomposition_symmetric():
+    A = np.array([[2, 1], [1, 2]], dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    expected_eigenvalues = np.array([3, 1])
+    assert np.allclose(np.sort(eigenvalues), np.sort(expected_eigenvalues))
+    eigenvectors = find_eigenvectors(A)
+    expected_eigenvectors = np.array([[1, -1], [1, 1]]) / np.sqrt(2)
+    for i in range(2):
+        assert np.allclose(
+            np.abs(eigenvectors[:, i]), np.abs(expected_eigenvectors[:, i])
+        )
+
+
+def test_eigen_decomposition_random():
+    np.random.seed(0)
+    A = np.random.rand(4, 4)
+    eigenvalues = find_eigenvalues(A)
+    expected_eigenvalues = np.linalg.eigvals(A)
+    assert np.allclose(
+        np.sort_complex(eigenvalues), np.sort_complex(expected_eigenvalues), atol=1e-3
+    )
+    eigenvectors = find_eigenvectors(A)
+    expected_eigenvectors = np.linalg.eig(A)[1]
+    for i in range(A.shape[0]):
+        assert np.allclose(
+            np.sort(np.abs(eigenvectors[:, i])),
+            np.sort(np.abs(expected_eigenvectors[:, i])),
+            atol=0.5,
+        )
+
+
+def test_eigen_decomposition_singular():
+    A = np.array([[2, 4], [1, 2]], dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    expected_eigenvalues = np.linalg.eigvals(A)
+    assert np.allclose(np.sort(eigenvalues), np.sort(expected_eigenvalues), atol=1e-3)
+    eigenvectors = find_eigenvectors(A)
+    expected_eigenvectors = np.linalg.eig(A)[1]
+    for i in range(2):
+        assert np.allclose(
+            np.abs(eigenvectors[:, i]), np.abs(expected_eigenvectors[:, i]), atol=1e-3
+        )
+
+
+def test_eigen_decomposition_zero_matrix():
+    A = np.zeros((3, 3), dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    expected_eigenvalues = np.array([0, 0, 0])
+    assert np.allclose(np.sort(eigenvalues), np.sort(expected_eigenvalues))
+    eigenvectors = find_eigenvectors(A)
+    for i in range(3):
+        assert not np.allclose(eigenvectors[:, i], 0)
+
+
+def test_eigen_decomposition_non_square():
+    A = np.array([[1, 2, 3], [4, 5, 6]], dtype=float)
+    with pytest.raises(ValueError):
+        find_eigenvalues(A)
+
+
+def test_eigen_decomposition_complex_eigenvalues():
+    A = np.array([[0, -1], [1, 0]], dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    expected_eigenvalues = np.array([1j, -1j])
+    assert np.allclose(
+        np.sort_complex(eigenvalues), np.sort_complex(expected_eigenvalues)
+    )
+    eigenvectors = find_eigenvectors(A)
+    expected_eigenvectors = np.linalg.eig(A)[1]
+    for i in range(2):
+        assert np.allclose(
+            np.abs(eigenvectors[:, i]), np.abs(expected_eigenvectors[:, i]), atol=1e-3
+        )
+
+
+def test_eigen_decomposition_repeated_eigenvalues():
+    A = np.array([[3, 0, 0], [0, 3, 0], [0, 0, 3]], dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    expected_eigenvalues = np.array([3, 3, 3])
+    assert np.allclose(np.sort(eigenvalues), np.sort(expected_eigenvalues))
+    eigenvectors = find_eigenvectors(A)
+    expected_eigenvectors = np.eye(3)
+    for i in range(3):
+        assert np.allclose(
+            np.abs(eigenvectors[:, i]), np.abs(expected_eigenvectors[:, i]), rtol=1e-3
+        )
+
+
+def test_eigen_decomposition_large_matrix():
+    np.random.seed(1)
+    A = np.random.rand(5, 5)
+    eigenvalues = find_eigenvalues(A)
+    expected_eigenvalues = np.linalg.eigvals(A)
+    assert np.allclose(
+        np.sort_complex(eigenvalues), np.sort_complex(expected_eigenvalues), atol=1e-3
+    )
+    eigenvectors = find_eigenvectors(A)
+    expected_eigenvectors = np.linalg.eig(A)[1]
+    for i in range(5):
+        assert np.allclose(
+            np.sort(np.abs(eigenvectors[:, i])),
+            np.sort(np.abs(expected_eigenvectors[:, i])),
+            atol=0.5,
+        )
+
+
+def test_eigenvalues_negative_matrix():
+    A = np.array([[-1, 0], [0, -2]], dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    expected = np.array([-2, -1])
+    assert np.allclose(np.sort(np.real(eigenvalues)), np.sort(expected))
+
+
+def test_eigenvalues_upper_triangular():
+    A = np.array([[1, 3, 5], [0, 2, 4], [0, 0, 3]], dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    expected = np.array([1, 2, 3])
+    assert np.allclose(np.sort(np.real(eigenvalues)), np.sort(expected), atol=1e-3)
+
+
+def test_eigenvectors_diagonal():
+    A = np.diag([5.0, 10.0])
+    eigenvectors = find_eigenvectors(A)
+    for i in range(2):
+        v = eigenvectors[:, i]
+        assert np.linalg.norm(v) > 0
+
+
+def test_eigenvalues_1x1():
+    A = np.array([[7.0]])
+    eigenvalues = find_eigenvalues(A)
+    assert np.allclose(eigenvalues, np.array([7.0]))
+
+
+def test_eigenvectors_verify_equation():
+    A = np.array([[4, 1], [2, 3]], dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    eigenvectors = find_eigenvectors(A)
+    for i in range(A.shape[0]):
+        lam = eigenvalues[i]
+        v = eigenvectors[:, i]
+        if np.linalg.norm(v) > 1e-10:
+            Av = A @ v
+            lv = lam * v
+            assert np.allclose(Av, lv, atol=0.5)
+
+
+def test_eigenvectors_defective_matrix_free_variable_not_last():
+    # 1. A - 0*I = [[0, 1], [0, 0]] 在第 0 列没有主元，因此自由变量是第一个，且唯一的特征向量是 [1, 0]。
+    # 2. 是第一个自由变量，且唯一的特征向量是 [1, 0]。
+    A = np.array([[0, 1], [0, 0]], dtype=float)
+    eigenvectors = find_eigenvectors(A)
+    for i in range(2):
+        assert np.allclose(A @ eigenvectors[:, i], 0)
+        assert np.isclose(np.linalg.norm(eigenvectors[:, i]), 1.0)
+
+
+def test_eigenvectors_rank_one_nilpotent_3x3():
+    A = np.array([[0, 0, 1], [0, 0, 0], [0, 0, 0]], dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    eigenvectors = find_eigenvectors(A)
+    for i in range(3):
+        assert np.allclose(A @ eigenvectors[:, i], eigenvalues[i] * eigenvectors[:, i])
+
+
+def test_eigenvectors_repeated_eigenvalue_full_basis():
+    # 特征值 2 的重数为 2 且有两个独立的特征向量；
+    # 特征向量基必须完备（P 可逆），不能是重复向量。
+    A = np.array([[2, 0, 0], [0, 2, 1], [0, 0, 5]], dtype=float)
+    eigenvalues = find_eigenvalues(A)
+    P = find_eigenvectors(A)
+    assert np.linalg.matrix_rank(P) == 3
+    for i in range(3):
+        assert np.allclose(A @ P[:, i], eigenvalues[i] * P[:, i], atol=1e-6)
+        assert np.isclose(np.linalg.norm(P[:, i]), 1.0)
+
+
+def test_eigenvectors_repeated_eigenvalue_rotated_symmetric():
+    rng = np.random.default_rng(3)
+    Q, _ = np.linalg.qr(rng.standard_normal((4, 4)))
+    A = Q @ np.diag([1.0, 1.0, 1.0, 7.0]) @ Q.T
+    eigenvalues = find_eigenvalues(A)
+    P = find_eigenvectors(A)
+    assert np.linalg.matrix_rank(P, tol=1e-6) == 4
+    assert np.allclose(P @ np.diag(eigenvalues) @ np.linalg.inv(P), A, atol=1e-5)
+
+
+def test_eigenvectors_defective_repeated_eigenvalue():
+    # 若尔当块：只有一个特征向量，因此基无法完备。
+    A = np.array([[3, 1], [0, 3]], dtype=float)
+    P = find_eigenvectors(A)
+    for i in range(2):
+        assert np.allclose(A @ P[:, i], 3 * P[:, i], atol=1e-6)
+    assert np.linalg.matrix_rank(P, tol=1e-6) == 1

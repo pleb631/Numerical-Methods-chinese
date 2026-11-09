@@ -1,0 +1,224 @@
+# 本文件为 test_local_optimization.py 的中文注释版本（代码逻辑与英文版完全一致）
+# test_local_optimization.py
+import pytest
+import numpy as np
+from ..implementation.local_optimization import (
+    gradient_descent_optimize,
+    newtons_method_optimize,
+    bfgs,
+    _wolfe_line_search,
+)
+
+
+# 梯度下降测试
+
+
+def test_gd_quadratic():
+    f = lambda x: np.dot(x, x)
+    grad_f = lambda x: 2 * x
+    x0 = np.array([5.0, -3.0])
+    x = gradient_descent_optimize(f, grad_f, x0, learning_rate=0.1)
+    assert np.allclose(x, np.zeros(2), atol=1e-5)
+
+
+def test_gd_shifted_quadratic():
+    f = lambda x: (x[0] - 3) ** 2 + (x[1] + 1) ** 2
+    grad_f = lambda x: np.array([2 * (x[0] - 3), 2 * (x[1] + 1)])
+    x0 = np.array([0.0, 0.0])
+    x = gradient_descent_optimize(f, grad_f, x0, learning_rate=0.1)
+    assert np.allclose(x, np.array([3.0, -1.0]), atol=1e-4)
+
+
+def test_gd_constant_function():
+    f = lambda x: 5.0
+    grad_f = lambda x: np.zeros_like(x)
+    x0 = np.array([1.0, 2.0])
+    x = gradient_descent_optimize(f, grad_f, x0)
+    assert np.allclose(x, x0, atol=1e-6)
+
+
+def test_gd_non_convergent():
+    f = lambda x: np.abs(x[0])
+    grad_f = lambda x: np.array([np.sign(x[0])])
+    x0 = np.array([1.0])
+    with pytest.raises(ValueError):
+        gradient_descent_optimize(f, grad_f, x0, learning_rate=0.1, max_iterations=10)
+
+
+def test_gd_single_variable():
+    f = lambda x: (x[0] - 2) ** 2
+    grad_f = lambda x: np.array([2 * (x[0] - 2)])
+    x0 = np.array([0.0])
+    x = gradient_descent_optimize(f, grad_f, x0, learning_rate=0.1)
+    assert np.allclose(x, np.array([2.0]), atol=1e-5)
+
+
+# 牛顿法测试
+
+
+def test_newton_quadratic():
+    f = lambda x: np.dot(x, x)
+    grad_f = lambda x: 2 * x
+    hess_f = lambda x: 2 * np.eye(len(x))
+    x0 = np.array([10.0, -10.0])
+    x = newtons_method_optimize(f, grad_f, hess_f, x0)
+    assert np.allclose(x, np.zeros(2), atol=1e-8)
+
+
+def test_newton_shifted_quadratic():
+    f = lambda x: (x[0] - 1) ** 2 + (x[1] - 2) ** 2
+    grad_f = lambda x: np.array([2 * (x[0] - 1), 2 * (x[1] - 2)])
+    hess_f = lambda x: np.array([[2.0, 0.0], [0.0, 2.0]])
+    x0 = np.array([0.0, 0.0])
+    x = newtons_method_optimize(f, grad_f, hess_f, x0)
+    assert np.allclose(x, np.array([1.0, 2.0]), atol=1e-8)
+
+
+def test_newton_single_step_quadratic():
+    # 对于纯二次函数，牛顿法应在一步内收敛
+    f = lambda x: 0.5 * x[0] ** 2 + 0.5 * x[1] ** 2
+    grad_f = lambda x: x.copy()
+    hess_f = lambda x: np.eye(2)
+    x0 = np.array([5.0, -3.0])
+    x = newtons_method_optimize(f, grad_f, hess_f, x0, max_iterations=2)
+    assert np.allclose(x, np.zeros(2), atol=1e-10)
+
+
+def test_newton_non_convergent():
+    f = lambda x: x[0] ** 4
+    grad_f = lambda x: np.array([4 * x[0] ** 3])
+    hess_f = lambda x: np.array([[12 * x[0] ** 2]])
+    x0 = np.array([1.0])
+    # 1. 牛顿法在 x^4 上每步仅收缩 2/3，因此需要 3 次迭代
+    # 2. 无法达到梯度容差
+    with pytest.raises(ValueError):
+        newtons_method_optimize(f, grad_f, hess_f, x0, max_iterations=3)
+
+
+# BFGS 测试
+
+
+def test_bfgs_quadratic():
+    f = lambda x: np.dot(x, x)
+    grad_f = lambda x: 2 * x
+    x0 = np.array([5.0, -3.0])
+    x = bfgs(f, grad_f, x0)
+    assert np.allclose(x, np.zeros(2), atol=1e-4)
+
+
+def test_bfgs_shifted_quadratic():
+    f = lambda x: (x[0] - 3) ** 2 + (x[1] + 1) ** 2
+    grad_f = lambda x: np.array([2 * (x[0] - 3), 2 * (x[1] + 1)])
+    x0 = np.array([0.0, 0.0])
+    x = bfgs(f, grad_f, x0)
+    assert np.allclose(x, np.array([3.0, -1.0]), atol=1e-4)
+
+
+def test_bfgs_rosenbrock():
+    def f(x):
+        return (1 - x[0]) ** 2 + 100 * (x[1] - x[0] ** 2) ** 2
+
+    def grad_f(x):
+        dx0 = -2 * (1 - x[0]) - 400 * x[0] * (x[1] - x[0] ** 2)
+        dx1 = 200 * (x[1] - x[0] ** 2)
+        return np.array([dx0, dx1])
+
+    x0 = np.array([-1.0, 1.0])
+    x = bfgs(f, grad_f, x0, max_iterations=5000)
+    assert np.allclose(x, np.array([1.0, 1.0]), atol=1e-2)
+
+
+def test_bfgs_high_dimensions():
+    def f(x):
+        return np.sum(x**2)
+
+    def grad_f(x):
+        return 2 * x
+
+    x0 = np.ones(10) * 5.0
+    x = bfgs(f, grad_f, x0)
+    assert np.allclose(x, np.zeros(10), atol=1e-4)
+
+
+def test_bfgs_single_variable():
+    f = lambda x: (x[0] - 7) ** 2
+    grad_f = lambda x: np.array([2 * (x[0] - 7)])
+    x0 = np.array([0.0])
+    x = bfgs(f, grad_f, x0)
+    assert np.allclose(x, np.array([7.0]), atol=1e-4)
+
+
+def _rosenbrock():
+    def f(x):
+        return (1 - x[0]) ** 2 + 100 * (x[1] - x[0] ** 2) ** 2
+
+    def grad_f(x):
+        dx0 = -2 * (1 - x[0]) - 400 * x[0] * (x[1] - x[0] ** 2)
+        dx1 = 200 * (x[1] - x[0] ** 2)
+        return np.array([dx0, dx1])
+
+    return f, grad_f
+
+
+def test_bfgs_rosenbrock_tight_and_fast():
+    f, grad_f = _rosenbrock()
+    iterates = []
+    x = bfgs(
+        f,
+        grad_f,
+        np.array([-1.2, 1.0]),
+        tol=1e-8,
+        max_iterations=200,
+        callback=lambda xk: iterates.append(xk.copy()),
+    )
+    assert np.allclose(x, [1.0, 1.0], atol=1e-6)
+    # 超线性收敛：迭代次数远少于 100 次
+    assert len(iterates) < 100
+
+
+def test_bfgs_curvature_condition_holds_along_path():
+    # 使用强沃尔夫步长时，对于每个接受的步长，y^T s > 0
+    f, grad_f = _rosenbrock()
+    path = []
+    bfgs(
+        f,
+        grad_f,
+        np.array([-1.2, 1.0]),
+        tol=1e-8,
+        callback=lambda xk: path.append(xk.copy()),
+    )
+    path = [np.array([-1.2, 1.0])] + path
+    for a, b in zip(path[:-1], path[1:]):
+        assert (grad_f(b) - grad_f(a)) @ (b - a) > 0
+
+
+def test_wolfe_line_search_satisfies_strong_wolfe():
+    f, grad_f = _rosenbrock()
+    x = np.array([-1.2, 1.0])
+    g = grad_f(x)
+    d = -g
+    c1, c2 = 1e-4, 0.9
+    alpha, f_new, g_new = _wolfe_line_search(f, grad_f, x, d, f(x), g @ d, c1, c2)
+    assert f_new <= f(x) + c1 * alpha * (g @ d)
+    assert abs(g_new @ d) <= c2 * abs(g @ d)
+
+
+def test_wolfe_line_search_needs_longer_step_than_one():
+    # 沿平缓斜坡的陡峭下降：alpha = 1 对于此情况而言过短
+    # 曲率条件，因此括弧阶段必须扩展步长。
+    f = lambda x: (x[0] - 100.0) ** 2
+    grad_f = lambda x: np.array([2 * (x[0] - 100.0)])
+    x = np.array([0.0])
+    d = np.array([1.0])
+    alpha, _, g_new = _wolfe_line_search(
+        f, grad_f, x, d, f(x), grad_f(x) @ d, 1e-4, 0.1
+    )
+    assert alpha > 1.0
+    assert abs(g_new @ d) <= 0.1 * abs(grad_f(x) @ d)
+
+
+def test_bfgs_invalid_wolfe_constants():
+    f = lambda x: x @ x
+    grad_f = lambda x: 2 * x
+    with pytest.raises(ValueError, match="Wolfe"):
+        bfgs(f, grad_f, np.array([1.0]), c1=0.5, c2=0.1)

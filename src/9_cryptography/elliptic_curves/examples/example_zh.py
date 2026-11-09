@@ -1,0 +1,66 @@
+# 本文件为 example.py 的中文注释版本（代码逻辑与英文版完全一致）
+"""椭圆曲线算术 — 示例
+演示了点加法、点倍乘、标量乘法以及在曲线 y² = x³ + 2x + 3 (mod 97) 上的 ECDH 密钥交换。
+
+
+
+"""
+
+from ..implementation.elliptic_curves import (
+    is_on_curve,
+    point_add,
+    point_double,
+    scalar_multiply,
+    ecdh_shared_secret,
+)
+
+
+def main() -> None:
+    # 曲线参数：y² = x³ + 2x + 3 (mod 97)
+    a, b, p = 2, 3, 97
+    G = (0, 10)  # 阶为 50 的生成点
+
+    print("Elliptic Curve: y² = x³ + 2x + 3 (mod 97)")
+    print(f"Generator G = {G}")
+    print(f"G on curve:  {is_on_curve(G, a, b, p)}")
+    print()
+
+    # --- 点倍乘 ---
+    two_G = point_double(G, a, p)
+    print(f"2G = {two_G}")
+
+    # --- 点加法 ---
+    Q = (1, 43)
+    R = point_add(G, Q, a, p)
+    print(f"G + {Q} = {R}")
+    print()
+
+    # --- 标量乘法 ---
+    for k in range(1, 6):
+        kG = scalar_multiply(k, G, a, p)
+        print(f"{k}G = {kG}")
+    print()
+
+    # --- ECDH 密钥交换 ---
+    alice_private = 7
+    bob_private = 11
+
+    alice_public = scalar_multiply(alice_private, G, a, p)
+    bob_public = scalar_multiply(bob_private, G, a, p)
+
+    print("ECDH Key Exchange")
+    print(f"  Alice private key : {alice_private}")
+    print(f"  Alice public key  : {alice_public}")
+    print(f"  Bob private key   : {bob_private}")
+    print(f"  Bob public key    : {bob_public}")
+
+    shared_alice = ecdh_shared_secret(alice_private, bob_public, a, p, b=b)
+    shared_bob = ecdh_shared_secret(bob_private, alice_public, a, p, b=b)
+
+    print(f"  Alice shared secret: {shared_alice}")
+    print(f"  Bob shared secret  : {shared_bob}")
+    print(f"  Secrets match: {shared_alice == shared_bob}")
+
+
+if __name__ == "__main__":
+    main()
